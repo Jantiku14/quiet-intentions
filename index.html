@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#05060a" />
+  <title>For You</title>
+  <style>
+    :root{
+      --bg1:#081225;
+      --bg2:#05060a;
+      --text:#f2f4f8;
+      --muted:rgba(242,244,248,.72);
+      --muted2:rgba(242,244,248,.55);
+      --glow:rgba(255,120,150,.10);
+      --glow2:rgba(255,80,120,.06);
+      --card:rgba(255,255,255,.04);
+      --shadow: 0 18px 45px rgba(0,0,0,.45);
+      --ease:cubic-bezier(.2,.8,.2,1);
+      --dur:900ms;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:var(--text);
+      background: radial-gradient(1000px 800px at 60% 10%, var(--glow) 0%, rgba(0,0,0,0) 55%),
+                  radial-gradient(900px 700px at 25% 40%, var(--glow2) 0%, rgba(0,0,0,0) 60%),
+                  linear-gradient(160deg, var(--bg1), var(--bg2));
+      overflow:hidden;
+    }
+
+    /* subtle corner doodle hearts */
+    .corner{
+      position:fixed;
+      pointer-events:none;
+      opacity:.06;
+      filter: blur(.2px);
+      z-index:0;
+    }
+    .corner.tl{top:10px;left:10px;transform:rotate(-8deg)}
+    .corner.tr{top:10px;right:10px;transform:rotate(10deg) scaleX(-1)}
+    .corner.bl{bottom:90px;left:10px;transform:rotate(6deg)}
+    .corner.br{bottom:90px;right:10px;transform:rotate(-6deg) scaleX(-1)}
+
+    /* particles */
+    .particles{position:fixed;inset:0;pointer-events:none;z-index:0}
+    .p{
+      position:absolute;
+      width:3px;height:3px;border-radius:50%;
+      background:rgba(242,244,248,.28);
+      opacity:.35;
+      animation: drift linear infinite;
+      filter: blur(.2px);
+    }
+    @keyframes drift{
+      from{ transform: translate3d(0,0,0); }
+      to  { transform: translate3d(0,-120vh,0); }
+    }
+
+    .app{
+      position:relative;
+      height:100%;
+      z-index:1;
+    }
+
+    .wrap{
+      height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 24px 18px calc(110px + env(safe-area-inset-bottom)) 18px;
+    }
+
+    .panel{
+      width:min(420px, 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:22px;
+      padding: 26px 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      position:relative;
+      overflow:hidden;
+    }
+    .panel::before{
+      content:"";
+      position:absolute; inset:-2px;
+      background: radial-gradient(700px 320px at 20% 0%, rgba(255,110,150,.12), rgba(0,0,0,0) 60%),
+                  radial-gradient(700px 320px at 80% 100%, rgba(255,110,150,.08), rgba(0,0,0,0) 65%);
+      opacity:.55;
+      pointer-events:none;
+    }
+    .panel > *{position:relative}
+
+    .text{
+      white-space:pre-line;
+      line-height:1.55;
+      font-size: 16px;
+      letter-spacing:.1px;
+    }
+
+    .title{
+      font-size: 26px;
+      letter-spacing:.2px;
+      line-height:1.15;
+      margin:0 0 10px 0;
+    }
+
+    .small{
+      margin-top:12px;
+      color:var(--muted);
+      font-size: 13px;
+      letter-spacing:.2px;
+    }
+
+    /* screen transitions */
+    .screen{
+      display:none;
+      transform: translateY(10px);
+      opacity:0;
+      transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+    }
+    .screen.active{
+      display:block;
+    }
+    .screen.show{
+      opacity:1;
+      transform: translateY(0);
+    }
+
+    /* bottom nav */
+    .nav{
+      position:fixed;
+      left:0; right:0; bottom:0;
+      padding: 10px 14px calc(10px + env(safe-area-inset-bottom)) 14px;
+      display:flex;
+      justify-content:center;
+      z-index:5;
+      pointer-events:auto;
+    }
+    .navInner{
+      width:min(520px, 100%);
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      padding:10px;
+      border-radius:18px;
+      background: rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .btn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      padding: 10px 14px;
+      border-radius:14px;
+      font-size:14px;
+      letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      cursor:pointer;
+      user-select:none;
+      transition: transform 120ms var(--ease), background 160ms var(--ease), opacity 160ms var(--ease);
+    }
+    .btn:active{ transform: scale(.98); }
+    .btn.disabled{
+      opacity:.35;
+      pointer-events:none;
+    }
+    .btn.secondary{
+      background: rgba(255,255,255,.03);
+    }
+
+    /* screen 2 sticky wall */
+    .label{
+      color:var(--muted2);
+      font-size:12px;
+      letter-spacing:.25px;
+      text-transform:lowercase;
+      margin: 0 0 12px 2px;
+    }
+    .wall{
+      height: min(56vh, 430px);
+      overflow:auto;
+      padding: 8px 6px 16px 6px;
+      border-radius:18px;
+      background: rgba(0,0,0,.14);
+      border: 1px solid rgba(255,255,255,.08);
+      scrollbar-width: none;
+    }
+    .wall::-webkit-scrollbar{ width:0; height:0; }
+
+    .controls{
+      display:flex;
+      gap:10px;
+      margin-top:12px;
+      align-items:center;
+    }
+
+    .note{
+      width: 92%;
+      max-width: 340px;
+      margin: 10px auto;
+      padding: 16px 14px 14px 14px;
+      border-radius: 16px;
+      box-shadow: 0 12px 28px rgba(0,0,0,.35);
+      position:relative;
+      transform-origin: 30% 10%;
+      border: 1px solid rgba(0,0,0,.06);
+      overflow:hidden;
+      animation: pop 420ms var(--ease) both;
+    }
+
+    /* paper texture (no images) */
+    .note::before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,.35)),
+        repeating-linear-gradient(135deg, rgba(0,0,0,.018) 0 2px, rgba(255,255,255,0) 2px 7px),
+        radial-gradient(600px 200px at 20% 0%, rgba(255,255,255,.55), rgba(255,255,255,0) 55%);
+      opacity:.9;
+      pointer-events:none;
+    }
+
+    /* tape strip */
+    .note::after{
+      content:"";
+      position:absolute;
+      top:10px; left:50%;
+      width: 92px; height: 18px;
+      transform: translateX(-50%) rotate(-1deg);
+      background: rgba(255,255,255,.20);
+      border: 1px solid rgba(0,0,0,.05);
+      border-radius: 10px;
+      box-shadow: 0 6px 14px rgba(0,0,0,.18);
+      opacity:.65;
+      pointer-events:none;
+    }
+
+    .noteText{
+      position:relative;
+      z-index:1;
+      color: rgba(10,12,16,.92);
+      font-size:15px;
+      line-height:1.42;
+      letter-spacing:.1px;
+      text-align:center;
+      padding-top: 6px;
+    }
+    .noteMeta{
+      position:absolute;
+      right:10px; bottom:8px;
+      font-size:11px;
+      color: rgba(10,12,16,.52);
+      z-index:1;
+      letter-spacing:.2px;
+    }
+
+    @keyframes pop{
+      from{ opacity:0; transform: translateY(8px) scale(.985); }
+      to{ opacity:1; transform: translateY(0) scale(1); }
+    }
+
+    .hint{
+      margin-top:10px;
+      color:var(--muted2);
+      font-size:12px;
+      letter-spacing:.2px;
+      text-align:center;
+    }
+
+    
+    .scrollablePiece{
+      max-height: min(62vh, 520px);
+      overflow:auto;
+      padding-right: 6px;
+      padding-bottom: 12px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .scrollablePiece::-webkit-scrollbar{ width:0; height:0; }
+
+    /* helper for screen 3 long text readability */
+    .long{
+      font-size:15.5px;
+      line-height:1.6;
+    }
+
+    /* reduce motion */
+    @media (prefers-reduced-motion: reduce){
+      .screen{ transition:none }
+      .p{ animation:none }
+      .note{ animation:none }
+      .btn{ transition:none }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Corner doodle hearts -->
+  <svg class="corner tl" width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+    <path d="M60 92c-18-12-34-26-34-44 0-10 8-18 18-18 7 0 13 4 16 10 3-6 9-10 16-10 10 0 18 8 18 18 0 18-16 32-34 44z"
+          fill="none" stroke="rgba(242,244,248,1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M32 30c4-6 10-10 18-10" fill="none" stroke="rgba(242,244,248,1)" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+  <svg class="corner tr" width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+    <path d="M60 92c-18-12-34-26-34-44 0-10 8-18 18-18 7 0 13 4 16 10 3-6 9-10 16-10 10 0 18 8 18 18 0 18-16 32-34 44z"
+          fill="none" stroke="rgba(242,244,248,1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M32 30c4-6 10-10 18-10" fill="none" stroke="rgba(242,244,248,1)" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+  <svg class="corner bl" width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+    <path d="M60 92c-18-12-34-26-34-44 0-10 8-18 18-18 7 0 13 4 16 10 3-6 9-10 16-10 10 0 18 8 18 18 0 18-16 32-34 44z"
+          fill="none" stroke="rgba(242,244,248,1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M32 30c4-6 10-10 18-10" fill="none" stroke="rgba(242,244,248,1)" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+  <svg class="corner br" width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+    <path d="M60 92c-18-12-34-26-34-44 0-10 8-18 18-18 7 0 13 4 16 10 3-6 9-10 16-10 10 0 18 8 18 18 0 18-16 32-34 44z"
+          fill="none" stroke="rgba(242,244,248,1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M32 30c4-6 10-10 18-10" fill="none" stroke="rgba(242,244,248,1)" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+
+  <!-- Particles -->
+  <div class="particles" id="particles"></div>
+
+  <div class="app">
+    <div class="wrap">
+      <div class="panel">
+        <!-- Screen 1 -->
+        <section class="screen" data-screen="0">
+          <div class="text">
+Hey You.
+
+I made this for you.
+
+You don’t need to say anything.
+I just wanted to give you something that lasts a little longer than today.
+( I hope you don't hate this month as much more anymore💕)
+          </div>
+        </section>
+
+        <!-- Screen 2 -->
+        <section class="screen" data-screen="1">
+          <div class="label">a small note for you</div>
+          <div class="wall" id="wall" aria-label="Sticky notes wall"></div>
+          <div class="controls">
+            <button class="btn" id="newNoteBtn" type="button">New note</button>
+            <button class="btn secondary" id="undoBtn" type="button" title="Remove the most recent note">Undo</button>
+            <button class="btn secondary" id="clearBtn" type="button" title="Clear all notes">Clear</button>
+          </div>
+          <div class="hint">Tap “New note” as many times as you want.</div>
+        </section>
+
+        <!-- Screen 3 -->
+        <section class="screen" data-screen="2">
+          <div class="text long scrollablePiece" id="piece">
+You are beautiful.
+
+Not just in the obvious ways. Not just in the ways people casually notice.
+But in the quiet ways.
+
+In the way your presence softens everything around you.
+In the way your smile feels honest, like it exists without trying.
+In the way your eyes carry more than they ever say out loud.
+
+There’s something about you that feels calm. Real.
+Something that doesn’t need attention, yet naturally holds it.
+
+You don’t ask to be seen.
+You don’t ask to be admired.
+
+Beautiful in the way time seems to slow when I look at you, as though the moment itself wishes to linger a little longer. 
+
+Beautiful in the quiet way your presence brings ease, like the world, for once, has nothing urgent to say.
+
+ Your smile… it shines like a star—steady, certain, and softly radiant. Not demanding to be seen, yet impossible to ignore.
+
+ It carries a warmth that lingers, like light that remains even after you’ve turned away. The kind of smile that does not simply appear, but stays with those fortunate enough to have witnessed it. 
+
+And your eyes— they remind me of the stained glass in great churches, proud and intricate, made to be admired in silence. Yet even that comparison feels undeserving of you. For stained glass only reflects borrowed light, while your eyes seem to possess their own. There is a depth within them, something endless and quietly powerful, that makes it far too easy to lose oneself in their gaze—and far too difficult to wish for escape. 
+
+And every curve of you, each line shaped with care and quiet precision, feels intentional. Measured not by chance, but by design. As though nothing about you was placed without thought, and nothing exists without purpose. 
+
+You do not need to ask to be seen. You do not need to ask to be admired. For beauty such as yours does not announce itself loudly— it simply exists, and in existing, it leaves the world better for it
+
+
+          </div>
+        </section>
+
+        <!-- Screen 4 -->
+        <section class="screen" data-screen="3">
+          <h1 class="title">Happy Valentine’s Day.</h1>
+          <div class="small">I’m glad you exist. I love youuuuu ❤️💕</div>
+        </section>
+      </div>
+    </div>
+
+    <div class="nav">
+      <div class="navInner">
+        <button class="btn" id="prevBtn" type="button">← Previous</button>
+        <button class="btn" id="nextBtn" type="button">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- compliments (non-cheesy, grounded, varied) ---
+    const COMPLIMENTS = [
+      "You have a calm way of being that makes things feel lighter.",
+      "You don’t force anything — and that’s exactly why your presence works.",
+      "You make quiet moments feel less empty.",
+      "There’s a steady confidence in how you carry yourself.",
+      "You have a soft kind of strength that doesn’t need noise.",
+      "You make people feel comfortable without trying too hard.",
+      "You’re the kind of person whose presence lowers the volume in a good way.",
+      "You have a grounded energy that’s honestly rare.",
+      "You feel sincere — not performative.",
+      "You make space feel safer just by being in it.",
+      "You have an ease about you that people notice.",
+      "You’re thoughtful in a way that feels real, not forced.",
+      "You don’t chase attention, yet you’re impossible to ignore.",
+      "You’re quietly impressive.",
+      "You have a gentle confidence that stands on its own.",
+      "You bring calm without trying to be the calm one.",
+      "You make ordinary moments feel softer.",
+      "You have a presence that feels steady and clean.",
+      "You feel like someone people can breathe around.",
+      "You have a calmness that doesn’t feel distant — it feels warm.",
+
+      "You pay attention in a way that makes people feel seen.",
+      "You have good energy — the kind that doesn’t ask for anything.",
+      "You make things feel less complicated.",
+      "You’re quietly resilient.",
+      "You carry yourself with self-respect, and it shows.",
+      "You don’t need to prove yourself to be felt.",
+      "You have a natural sense of balance.",
+      "You make silence feel comfortable.",
+      "You’re the kind of person who makes things feel more human.",
+      "You feel present, not distracted.",
+      "You have a softness that doesn’t take away from your strength.",
+      "You have the kind of composure that people trust.",
+      "You make things feel less rushed.",
+      "You’re good at being real.",
+      "You have a calm confidence that doesn’t need an audience.",
+      "You have a quiet glow to you.",
+      "You’re the kind of person whose energy stays with people.",
+      "You make people feel less alone.",
+      "You have a steady warmth about you.",
+      "You’re easy to appreciate.",
+
+      "You have a way of making things feel a bit more okay.",
+      "You don’t overdo anything — you just show up as yourself.",
+      "You’re the kind of person that makes small moments feel meaningful.",
+      "You feel emotionally mature.",
+      "You’re gentle without being weak.",
+      "You have a calm honesty about you.",
+      "You’re consistent in a way that’s comforting.",
+      "You feel like someone who understands more than they say.",
+      "You don’t need to be loud to be noticed.",
+      "You have a quiet certainty.",
+      "You make the room feel less tense.",
+      "You don’t fake warmth — you actually have it.",
+      "You have a natural kindness that doesn’t feel staged.",
+      "You feel safe to be around.",
+      "You have a presence that feels clean and unmessy.",
+      "You bring a calm clarity to things.",
+      "You feel like peace without being boring.",
+      "You have a steady way of handling life.",
+      "You’re quietly magnetic.",
+      "You make being around you feel simple.",
+
+      "You have the kind of confidence that doesn’t need to compete.",
+      "You feel sincere, not scripted.",
+      "You make things feel softer without even trying.",
+      "You have a gentle seriousness that people respect.",
+      "You carry yourself with intention.",
+      "You don’t rush yourself, and that’s a flex.",
+      "You have a calm patience that stands out.",
+      "You feel like someone who knows who they are.",
+      "You’re the kind of person people remember for the right reasons.",
+      "You have an easy warmth to you.",
+      "You feel steady — like you don’t fold easily.",
+      "You have a calm strength that doesn’t need to announce itself.",
+      "You make things feel less heavy just by being present.",
+      "You have a quietly beautiful way of existing.",
+      "You make people feel at ease.",
+      "You’re thoughtful with your energy.",
+      "You feel emotionally grounded.",
+      "You have a quiet elegance to you.",
+      "You make the day feel a bit gentler.",
+      "You’re the kind of person worth appreciating slowly.",
+
+      "You have a presence that feels like a deep breath.",
+      "You feel calm in a way that’s contagious.",
+      "You don’t demand attention — you earn it naturally.",
+      "You have a quiet confidence that doesn’t ask for permission.",
+      "You make things feel less chaotic.",
+      "You’re good at being steady when things aren’t.",
+      "You have a warm composure.",
+      "You have a way of making people feel understood.",
+      "You feel authentic.",
+      "You’re the kind of person that brings calm without dimming the room.",
+      "You carry yourself like you respect yourself.",
+      "You have a gentle strength that feels protective.",
+      "You make people feel comfortable being themselves.",
+      "You have a kind energy that doesn’t try to buy reactions.",
+      "You’re quietly strong in the ways that matter.",
+      "You have a soft confidence that’s hard to fake.",
+      "You make things feel more balanced.",
+      "You have calm eyes. Even when you don’t say much.",
+      "You feel like someone worth listening to.",
+      "You make people feel less rushed just by being around.",
+
+      "You have a steady warmth that stays.",
+      "You don’t need to be perfect to be special.",
+      "You feel genuine in a world that’s often performative.",
+      "You have a calm way of handling yourself.",
+      "You bring a quiet kind of comfort.",
+      "You have presence — the real kind.",
+      "You make it easy to be calm around you.",
+      "You feel emotionally safe.",
+      "You carry quiet confidence like it’s normal.",
+      "You make things feel less tense.",
+      "You have a soft way of being strong.",
+      "You’re thoughtful in ways people don’t always notice — but they feel it.",
+      "You have a grounded vibe that’s rare.",
+      "You make ordinary moments feel more meaningful.",
+      "You don’t need to overexplain yourself.",
+      "You have a calm clarity.",
+      "You have a quiet courage about you.",
+      "You feel steady even when life isn’t.",
+      "You’re the kind of person people are glad they met.",
+      "You make the world feel a bit softer.",
+
+      "You’re quietly brilliant in the way you think.",
+      "You have a calm intelligence.",
+      "You don’t talk just to fill space — you actually mean things.",
+      "You have a quiet confidence that feels earned.",
+      "You make kindness look normal.",
+      "You feel like someone who cares deeply — without forcing it.",
+      "You’re good at making people feel included.",
+      "You have a gentle warmth that doesn’t disappear.",
+      "You have self-respect in your posture.",
+      "You make people feel less judged.",
+      "You’re the kind of person whose presence feels like relief.",
+      "You have a calm steadiness that’s attractive in the most normal way.",
+      "You have a quiet spark people notice.",
+      "You move through life with intention.",
+      "You feel balanced.",
+      "You feel emotionally mature in a way that’s rare at this age.",
+      "You have a soft steadiness to you.",
+      "You’re quietly unforgettable.",
+      "You bring a calm glow to spaces.",
+      "You make people feel safe to breathe.",
+
+      "You have a gentle confidence that doesn’t need hype.",
+      "You feel peaceful — not distant.",
+      "You’re the kind of person who makes things feel less messy.",
+      "You have calm strength in the way you show up.",
+      "You don’t need to be loud to be felt.",
+      "You have an honest kind of beauty — not the performative type.",
+      "You feel like someone who knows what matters.",
+      "You have a quiet self-assurance.",
+      "You make things feel less rushed.",
+      "You carry warmth without trying to sell it.",
+      "You’re good at being present.",
+      "You have a steady kindness.",
+      "You have a calm heart, you can tell.",
+      "You feel like someone who can be trusted with softness.",
+      "You have a quiet charm that doesn’t try too hard.",
+      "You make people feel like they can be themselves.",
+      "You have a warm seriousness.",
+      "You feel thoughtful and real.",
+      "You have a calm grace in the way you exist.",
+      "You’re the kind of person that makes effort feel worth it.",
+
+      "You have an energy that feels like home without being familiar.",
+      "You make people feel less alone in their own head.",
+      "You have a calmness that doesn’t judge.",
+      "You bring clarity.",
+      "You have a soft steadiness.",
+      "You’re good at being genuine.",
+      "You feel like someone people can rely on.",
+      "You have an ease that feels safe.",
+      "You’re quietly impressive without trying to be.",
+      "You make kindness look effortless.",
+      "You have a calm way of existing that’s honestly refreshing.",
+      "You don’t need approval to be yourself.",
+      "You have a gentle but strong presence.",
+      "You make things feel a bit more peaceful.",
+      "You have a quiet kind of confidence that’s very attractive.",
+      "You’re the kind of person who makes people feel okay.",
+      "You have a calm steadiness that stays with people.",
+      "You feel like someone worth protecting — and also someone who can protect themselves.",
+      "You have a quiet light to you.",
+      "You make moments feel softer.",
+
+      "You’re easy to respect.",
+      "You carry yourself like you know your worth.",
+      "You have a calm courage.",
+      "You have an honest warmth.",
+      "You have a quiet beauty that doesn’t beg to be noticed.",
+      "You don’t need to prove anything — you just are.",
+      "You have a grounded softness.",
+      "You make people feel comfortable.",
+      "You have a calm intensity in the best way.",
+      "You feel emotionally steady.",
+      "You don’t overdo things — you do them right.",
+      "You have a gentle confidence that people feel.",
+      "You feel like someone worth knowing slowly.",
+      "You make small things feel meaningful.",
+      "You have a calm energy that people notice.",
+      "You have a quiet strength that holds.",
+      "You feel like peace with personality.",
+      "You make effort feel safe.",
+      "You’re quietly rare.",
+      "This is just a small reminder."
+    ];
+
+    // --- particles ---
+    (function initParticles(){
+      const el = document.getElementById('particles');
+      const n = 14;
+      for(let i=0;i<n;i++){
+        const d = document.createElement('div');
+        d.className = 'p';
+        const left = Math.random()*100;
+        const top = 100 + Math.random()*120; // start below viewport
+        const dur = 18 + Math.random()*18;
+        const delay = -Math.random()*dur;
+        const size = 2 + Math.random()*2;
+        d.style.left = left+'vw';
+        d.style.top = top+'vh';
+        d.style.width = size+'px';
+        d.style.height = size+'px';
+        d.style.animationDuration = dur+'s';
+        d.style.animationDelay = delay+'s';
+        d.style.opacity = (0.18 + Math.random()*0.28).toFixed(2);
+        el.appendChild(d);
+      }
+    })();
+
+    // --- screens ---
+    const screens = Array.from(document.querySelectorAll('.screen'));
+    let screenIndex = 0;
+
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    function showScreen(idx){
+      idx = Math.max(0, Math.min(screens.length-1, idx));
+      const prev = screens[screenIndex];
+      const next = screens[idx];
+
+      // hide current
+      prev.classList.remove('show');
+      setTimeout(()=>{
+        prev.classList.remove('active');
+        // show next
+        next.classList.add('active');
+        // next frame to allow transition
+        requestAnimationFrame(()=> next.classList.add('show'));
+      }, 60);
+
+      screenIndex = idx;
+      const piece = document.getElementById('piece'); if(piece) piece.scrollTop = 0;
+      updateNavState();
+    }
+
+    function updateNavState(){
+      prevBtn.classList.toggle('disabled', screenIndex === 0);
+      nextBtn.classList.toggle('disabled', screenIndex === screens.length-1);
+    }
+
+    prevBtn.addEventListener('click', ()=> showScreen(screenIndex-1));
+    nextBtn.addEventListener('click', ()=> showScreen(screenIndex+1));
+
+    // init first screen
+    screens[0].classList.add('active');
+    requestAnimationFrame(()=> screens[0].classList.add('show'));
+    updateNavState();
+
+    // --- sticky notes wall ---
+    const wall = document.getElementById('wall');
+    const newNoteBtn = document.getElementById('newNoteBtn');
+    const undoBtn = document.getElementById('undoBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    // shuffle bag to avoid repeats
+    function shuffled(array){
+      const a = array.slice();
+      for(let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]] = [a[j],a[i]];
+      }
+      return a;
+    }
+
+    let bag = shuffled(COMPLIMENTS);
+    let used = [];
+    let count = 0;
+
+    function pickCompliment(){
+      if(bag.length === 0){
+        // reshuffle excluding last 6 used to reduce immediate repeats
+        const recent = new Set(used.slice(-6));
+        const remaining = COMPLIMENTS.filter(x => !recent.has(x));
+        bag = shuffled(remaining.length ? remaining : COMPLIMENTS);
+      }
+      const c = bag.pop();
+      used.push(c);
+      return c;
+    }
+
+    function noteTint(){
+      // subtle paper tint variations
+      const tints = [
+        ["#fff3df","#ffe9f0"],
+        ["#fff4e4","#ffe6ef"],
+        ["#fff2db","#ffeaf3"],
+        ["#fff6e8","#ffe7f1"],
+        ["#fff1de","#ffecec"]
+      ];
+      return tints[Math.floor(Math.random()*tints.length)];
+    }
+
+    function makeNote(text){
+      count += 1;
+
+      const note = document.createElement('div');
+      note.className = 'note';
+
+      const [a,b] = noteTint();
+      note.style.background = `linear-gradient(180deg, ${a}, ${b})`;
+
+      const rot = (Math.random()*6 - 3).toFixed(2);
+      const xoff = (Math.random()*18 - 9).toFixed(1);
+      note.style.transform = `translateX(${xoff}px) rotate(${rot}deg)`;
+
+      const p = document.createElement('div');
+      p.className = 'noteText';
+      p.textContent = text;
+
+      const meta = document.createElement('div');
+      meta.className = 'noteMeta';
+      meta.textContent = `note ${count}`;
+
+      note.appendChild(p);
+      note.appendChild(meta);
+
+      // newest on top
+      wall.prepend(note);
+    }
+
+    function addNote(){
+      makeNote(pickCompliment());
+      wall.scrollTop = 0;
+    }
+
+    newNoteBtn.addEventListener('click', addNote);
+
+    undoBtn.addEventListener('click', ()=>{
+      const first = wall.firstElementChild;
+      if(!first) return;
+      first.style.opacity = '0';
+      first.style.transform += ' translateY(8px)';
+      setTimeout(()=> first.remove(), 140);
+      // don't decrement count to keep numbering natural
+    });
+
+    clearBtn.addEventListener('click', ()=>{
+      const ok = confirm("Clear all notes?");
+      if(!ok) return;
+      wall.innerHTML = "";
+      count = 0;
+      used = [];
+      bag = shuffled(COMPLIMENTS);
+    });
+
+    // Add an initial note so the page doesn't look empty
+    setTimeout(()=>{ if(screenIndex===0){}; }, 0);
+    // optional: create first note when entering screen 2 for the first time
+    let seeded = false;
+    function maybeSeed(){
+      if(seeded) return;
+      seeded = true;
+      addNote();
+      addNote();
+    }
+    // observe screen change
+    const observer = new MutationObserver(()=> {
+      const s2 = document.querySelector('.screen[data-screen="1"]');
+      if(s2.classList.contains('active') && s2.classList.contains('show')){
+        maybeSeed();
+      }
+    });
+    observer.observe(document.body, {subtree:true, attributes:true, attributeFilter:['class']});
+  </script>
+</body>
+</html>
